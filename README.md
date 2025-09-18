@@ -1,10 +1,10 @@
-# AppLink for VS Code
+# Heroku AppLink for VS Code
 
-AppLink for VS Code helps you run Heroku AppLink CLI commands directly from the Command Palette and a dedicated Explorer view. It streamlines working with AppLink connections and authorizations, Salesforce and Data Cloud integrations, and provides a convenient way to set and reuse default parameters (app, add-on, connection, authorization).
+Heroku AppLink for VS Code helps you run Heroku AppLink CLI commands directly from the Command Palette and a dedicated Explorer view. It streamlines working with AppLink connections and authorizations, Salesforce and Data Cloud integrations, and provides a convenient way to set and reuse default parameters (app, add-on, connection, authorization).
 
 ## Features
 
-- AppLink Command Palette commands for common Heroku AppLink, Salesforce, and Data Cloud tasks.
+- Heroku AppLink Command Palette commands for common AppLink, Salesforce, and Data Cloud tasks.
 - Explorer view to list and inspect AppLink Connections and Authorizations.
 - “Diagnose Environment” to verify the Heroku CLI and AppLink plugin installation.
 - “Set Defaults” to store default `app`, `add-on`, `connection`, and `authorization` values used across commands.
@@ -14,7 +14,8 @@ AppLink for VS Code helps you run Heroku AppLink CLI commands directly from the 
 
 - Heroku CLI installed and available on your PATH.
 - Heroku AppLink plugin. If missing, the extension can install it for you from:
-  - https://github.com/cwallsfdc/heroku-cli-plugin-applink
+  - https://github.com/heroku/heroku-cli-plugin-applink
+  - https://github.com/cwallsfdc/heroku-cli-plugin-applink (for "AppLink: Data Cloud Deploy" command)
 
 ## Commands
 
