@@ -81,9 +81,15 @@ Use `@vscode/vsce` to create a `.vsix` package you can install locally or distri
 npm run package
 ```
 
-- Package into a `.vsix` using `vsce`
+- Package into a `.vsix`
 
-You can use `npx` (no global install required):
+Primary (uses included npm script, no global install required):
+
+```bash
+npm run vsix
+```
+
+Alternative (run `vsce` directly via `npx`):
 
 ```bash
 npx @vscode/vsce package
@@ -91,25 +97,11 @@ npx @vscode/vsce package
 
 This will generate a file like `heroku-applink-vscode-0.0.1.vsix` in the project root.
 
-- Optional: install `vsce` globally instead of using `npx`
+Optional: install `vsce` globally instead of using `npx`:
 
 ```bash
 npm i -g @vscode/vsce
 vsce package
-```
-
-- Optional: add an npm script for convenience
-
-Add this to `package.json` under `scripts`:
-
-```json
-"vsix": "@vscode/vsce package"
-```
-
-Then run:
-
-```bash
-npm run vsix
 ```
 
 Notes:
