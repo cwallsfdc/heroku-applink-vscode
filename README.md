@@ -66,6 +66,56 @@ Defaults are automatically applied to commands that support them. You can overri
 2. Optionally run “AppLink: Set Defaults” to store commonly used parameter values.
 3. Run AppLink commands from the Command Palette or use the Explorer view to discover and inspect resources.
 
+## Packaging (.vsix)
+
+Use `@vscode/vsce` to create a `.vsix` package you can install locally or distribute.
+
+- Prerequisites
+  - Node.js and npm installed
+  - Run `npm ci` to install dependencies
+  - The build output (`dist/extension.js`) is produced by the existing scripts
+
+- Build the extension (production bundle)
+
+```bash
+npm run package
+```
+
+- Package into a `.vsix` using `vsce`
+
+You can use `npx` (no global install required):
+
+```bash
+npx @vscode/vsce package
+```
+
+This will generate a file like `heroku-applink-vscode-0.0.1.vsix` in the project root.
+
+- Optional: install `vsce` globally instead of using `npx`
+
+```bash
+npm i -g @vscode/vsce
+vsce package
+```
+
+- Optional: add an npm script for convenience
+
+Add this to `package.json` under `scripts`:
+
+```json
+"vsix": "@vscode/vsce package"
+```
+
+Then run:
+
+```bash
+npm run vsix
+```
+
+Notes:
+- The `package.json` already includes `vscode:prepublish` and `package` scripts that build the production bundle. `vsce package` uses that output to create the `.vsix`.
+- To install the built `.vsix` in VS Code, use the Extensions view menu > Install from VSIX..., and select the generated file.
+
 ## Release Notes
 
 ### 0.0.1
