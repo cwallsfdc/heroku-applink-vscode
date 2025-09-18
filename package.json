@@ -1,0 +1,229 @@
+{
+  "name": "heroku-applink-vscode",
+  "displayName": "heroku-applink-vscode",
+  "publisher": "cwallsfdc",
+  "description": "Extension for Heroku AppLink",
+  "version": "0.0.1",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cwallsfdc/heroku-applink-vscode.git"
+  },
+  "engines": {
+    "vscode": "^1.104.0"
+  },
+  "activationEvents": [
+    "onCommand:heroku-applink-vscode.run",
+    "onCommand:heroku-applink-vscode.salesforce.disconnect",
+    "onCommand:heroku-applink-vscode.salesforce.publications",
+    "onCommand:heroku-applink-vscode.salesforce.publish",
+    "onCommand:heroku-applink-vscode.datacloud.connect",
+    "onCommand:heroku-applink-vscode.datacloud.disconnect",
+    "onCommand:heroku-applink-vscode.datacloud.deploy",
+    "onCommand:heroku-applink-vscode.applink.authorizations",
+    "onCommand:heroku-applink-vscode.applink.authorizations.info",
+    "onCommand:heroku-applink-vscode.applink.connections",
+    "onCommand:heroku-applink-vscode.applink.connections.info",
+    "onCommand:heroku-applink-vscode.salesforce.authorizations.add",
+    "onCommand:heroku-applink-vscode.salesforce.authorizations.remove",
+    "onCommand:heroku-applink-vscode.salesforce.connect",
+    "onCommand:heroku-applink-vscode.salesforce.connect.jwt",
+    "onCommand:heroku-applink-vscode.datacloud.authorizations.add",
+    "onCommand:heroku-applink-vscode.datacloud.authorizations.remove",
+    "onCommand:heroku-applink-vscode.datacloud.data-action-target.create",
+    "onCommand:heroku-applink-vscode.diagnose",
+    "onCommand:heroku-applink-vscode.setDefaultApp",
+    "onCommand:heroku-applink-vscode.setDefaults",
+    "onCommand:heroku-applink-vscode.explorer.refresh",
+    "onCommand:heroku-applink-vscode.explorer.openInfo",
+    "onCommand:heroku-applink-vscode.explorer.copyId",
+    "onView:applinkExplorer"
+  ],
+  "categories": [
+    "Other"
+  ],
+  
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "heroku-applink-vscode.run",
+        "title": "AppLink: Run Command..."
+      },
+      {
+        "command": "heroku-applink-vscode.salesforce.disconnect",
+        "title": "AppLink: Salesforce Disconnect"
+      },
+      {
+        "command": "heroku-applink-vscode.salesforce.publications",
+        "title": "AppLink: Salesforce List Publications"
+      },
+      {
+        "command": "heroku-applink-vscode.salesforce.publish",
+        "title": "AppLink: Salesforce Publish"
+      },
+      {
+        "command": "heroku-applink-vscode.datacloud.connect",
+        "title": "AppLink: Data Cloud Connect"
+      },
+      {
+        "command": "heroku-applink-vscode.datacloud.disconnect",
+        "title": "AppLink: Data Cloud Disconnect"
+      },
+      {
+        "command": "heroku-applink-vscode.datacloud.deploy",
+        "title": "AppLink: Data Cloud Deploy"
+      },
+      {
+        "command": "heroku-applink-vscode.applink.authorizations",
+        "title": "AppLink: List Authorizations"
+      },
+      {
+        "command": "heroku-applink-vscode.applink.authorizations.info",
+        "title": "AppLink: Show Authorization Details"
+      },
+      {
+        "command": "heroku-applink-vscode.applink.connections",
+        "title": "AppLink: List Connections"
+      },
+      {
+        "command": "heroku-applink-vscode.applink.connections.info",
+        "title": "AppLink: Show Connection Details"
+      },
+      {
+        "command": "heroku-applink-vscode.salesforce.authorizations.add",
+        "title": "AppLink: Salesforce Add Authorization"
+      },
+      {
+        "command": "heroku-applink-vscode.salesforce.authorizations.remove",
+        "title": "AppLink: Salesforce Remove Authorization"
+      },
+      {
+        "command": "heroku-applink-vscode.salesforce.connect",
+        "title": "AppLink: Salesforce Connect"
+      },
+      {
+        "command": "heroku-applink-vscode.salesforce.connect.jwt",
+        "title": "AppLink: Salesforce Connect (JWT)"
+      },
+      {
+        "command": "heroku-applink-vscode.datacloud.authorizations.add",
+        "title": "AppLink: Data Cloud Add Authorization"
+      },
+      {
+        "command": "heroku-applink-vscode.datacloud.authorizations.remove",
+        "title": "AppLink: Data Cloud Remove Authorization"
+      },
+      {
+        "command": "heroku-applink-vscode.datacloud.data-action-target.create",
+        "title": "AppLink: Data Cloud Create Data Action Target"
+      },
+      {
+        "command": "heroku-applink-vscode.diagnose",
+        "title": "AppLink: Diagnose Environment"
+      },
+      {
+        "command": "heroku-applink-vscode.setDefaultApp",
+        "title": "AppLink: Set Default App"
+      },
+      {
+        "command": "heroku-applink-vscode.setDefaults",
+        "title": "AppLink: Set Defaults"
+      },
+      {
+        "command": "heroku-applink-vscode.explorer.refresh",
+        "title": "AppLink: Refresh Explorer"
+      },
+      {
+        "command": "heroku-applink-vscode.explorer.openInfo",
+        "title": "AppLink: Open Info"
+      },
+      {
+        "command": "heroku-applink-vscode.explorer.copyId",
+        "title": "AppLink: Copy ID"
+      }
+    ],
+    "views": {
+      "explorer": [
+        {
+          "id": "applinkExplorer",
+          "name": "AppLink",
+          "icon": "media/applink.svg"
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "heroku-applink-vscode.explorer.refresh",
+          "when": "view == applinkExplorer",
+          "group": "navigation@1"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "heroku-applink-vscode.explorer.openInfo",
+          "when": "view == applinkExplorer && (viewItem == connection || viewItem == authorization)",
+          "group": "inline@1"
+        },
+        {
+          "command": "heroku-applink-vscode.explorer.copyId",
+          "when": "view == applinkExplorer && (viewItem == connection || viewItem == authorization)",
+          "group": "inline@2"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "AppLink",
+      "properties": {
+        "applink.defaultApp": {
+          "type": "string",
+          "default": "",
+          "description": "Default Heroku app name to use for AppLink commands (-a)."
+        },
+        "applink.defaultAddon": {
+          "type": "string",
+          "default": "",
+          "description": "Default Heroku add-on name to use when not provided (--add-on)."
+        },
+        "applink.defaultConnection": {
+          "type": "string",
+          "default": "",
+          "description": "Default AppLink connection name to use when not provided (--connection)."
+        },
+        "applink.defaultAuthorization": {
+          "type": "string",
+          "default": "",
+          "description": "Default AppLink authorization name to use when not provided (--authorization)."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run package",
+    "compile": "npm run check-types && npm run lint && node esbuild.js",
+    "watch": "npm-run-all -p watch:*",
+    "watch:esbuild": "node esbuild.js --watch",
+    "watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
+    "package": "npm run check-types && npm run lint && node esbuild.js --production",
+    "compile-tests": "tsc -p . --outDir out",
+    "watch-tests": "tsc -p . -w --outDir out",
+    "pretest": "npm run compile-tests && npm run compile && npm run lint",
+    "check-types": "tsc --noEmit",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/node": "22.x",
+    "@types/vscode": "^1.104.0",
+    "@typescript-eslint/eslint-plugin": "^8.42.0",
+    "@typescript-eslint/parser": "^8.42.0",
+    "@vscode/test-cli": "^0.0.11",
+    "@vscode/test-electron": "^2.5.2",
+    "esbuild": "^0.25.9",
+    "eslint": "^9.34.0",
+    "npm-run-all": "^4.1.5",
+    "typescript": "^5.9.2"
+  },
+  "dependencies": {}
+}
