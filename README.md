@@ -56,15 +56,58 @@ This extension contributes the following settings (scoped per user or workspace)
 - `applink.defaultApp`: Default Heroku app name (used for `-a`).
 - `applink.defaultAddon`: Default add-on name (used for `--add-on`).
 - `applink.defaultConnection`: Default connection name (used for `--connection`).
-- `applink.defaultAuthorization`: Default authorization name (used for `--authorization`).
+- `applink.defaultAuthorization`: Default authorization name.
+  - For most commands this is used as `--authorization`.
+  - For `datacloud:deploy` this is used as `--authorization-name`.
+- `applink.debugLogging`: When enabled, Explorer logs the exact command and raw CLI output to the "AppLink" output channel.
+- `applink.debugHttp`: When enabled, commands run with `DEBUG="http,-http:headers"` so the Heroku CLI emits HTTP debug (the Explorer uses this as a parsing fallback).
+- `applink.datacloudDeploy.accessToken`: When set, the extension will export `DEPLOY_ACCESS_TOKEN` for `datacloud:deploy`.
+- `applink.datacloudDeploy.instanceUrl`: When set, the extension will export `DEPLOY_INSTANCE_URL` for `datacloud:deploy`.
 
 Defaults are automatically applied to commands that support them. You can override by providing the flag explicitly at runtime.
+
+Notes for Data Cloud Deploy:
+- The underlying CLI now expects `--authorization-name` instead of `--authorization`.
+- The extension automatically injects `--authorization-name <applink.defaultAuthorization>` when set.
+- If you supply `--authorization` manually, the extension strips it and logs a note, to avoid errors.
+- If `applink.datacloudDeploy.accessToken` or `applink.datacloudDeploy.instanceUrl` are set, the extension prepends `DEPLOY_ACCESS_TOKEN` / `DEPLOY_INSTANCE_URL` to the environment for `datacloud:deploy` only.
+
+Debugging:
+- Enable `applink.debugLogging` to see the command the extension runs and the raw CLI output in the AppLink output channel.
+- Enable `applink.debugHttp` to add `DEBUG="http,-http:headers"` to the environment for all extension-invoked commands.
 
 ## Usage
 
 1. Open the Command Palette and run “AppLink: Diagnose Environment” to verify your setup.
 2. Optionally run “AppLink: Set Defaults” to store commonly used parameter values.
 3. Run AppLink commands from the Command Palette or use the Explorer view to discover and inspect resources.
+
+### Data Cloud Deploy
+
+From the Command Palette or Explorer toolbar choose "AppLink: Data Cloud Deploy". The extension will:
+- Add `-a <applink.defaultApp>` when set.
+- Add `--add-on <applink.defaultAddon>` when set.
+- Add `--authorization-name <applink.defaultAuthorization>` when set (note: not `--authorization`).
+- If configured, export `DEPLOY_ACCESS_TOKEN` and `DEPLOY_INSTANCE_URL` to the CLI process.
+
+Example:
+
+```bash
+heroku datacloud:deploy -a my-app --authorization-name my-dc-auth --name my_func
+```
+
+To troubleshoot, enable `applink.debugLogging` and `applink.debugHttp` and review the AppLink output channel.
+
+## Testing
+
+Manual verification steps:
+- Set defaults via "AppLink: Set Defaults" (at minimum set `defaultApp`; optionally set `defaultAddon`, `defaultAuthorization`).
+- Explorer: expand Connections and Authorizations. If none exist, you should see friendly placeholders that link to docs.
+- Explorer parsing: with `applink.debugHttp` enabled, ensure HTTP debug appears and the Explorer can still list items using the trailing `http [ ... ]` JSON as a fallback.
+- Run "AppLink: Data Cloud Deploy":
+  - Confirm the command line in the output shows `--authorization-name` (not `--authorization`).
+  - If you set `applink.datacloudDeploy.*`, confirm notes appear indicating `DEPLOY_*` overrides were applied.
+  - With `applink.debugHttp` enabled, confirm a `Note: DEBUG=...` line appears.
 
 ## Packaging (.vsix)
 

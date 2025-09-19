@@ -4,6 +4,7 @@
   "publisher": "cwallsfdc",
   "description": "Extension for Heroku AppLink",
   "version": "0.0.1",
+  "icon": "media/applink.png",
   "repository": {
     "type": "git",
     "url": "https://github.com/cwallsfdc/heroku-applink-vscode.git"
@@ -33,6 +34,7 @@
     "onCommand:heroku-applink-vscode.diagnose",
     "onCommand:heroku-applink-vscode.setDefaultApp",
     "onCommand:heroku-applink-vscode.setDefaults",
+    "onCommand:heroku-applink-vscode.viewDefaults",
     "onCommand:heroku-applink-vscode.explorer.refresh",
     "onCommand:heroku-applink-vscode.explorer.openInfo",
     "onCommand:heroku-applink-vscode.explorer.copyId",
@@ -71,7 +73,8 @@
       },
       {
         "command": "heroku-applink-vscode.datacloud.deploy",
-        "title": "AppLink: Data Cloud Deploy"
+        "title": "AppLink: Data Cloud Deploy",
+        "icon": "$(cloud-upload)"
       },
       {
         "command": "heroku-applink-vscode.applink.authorizations",
@@ -130,6 +133,11 @@
         "title": "AppLink: Set Defaults"
       },
       {
+        "command": "heroku-applink-vscode.viewDefaults",
+        "title": "AppLink: View Defaults",
+        "icon": "$(gear)"
+      },
+      {
         "command": "heroku-applink-vscode.explorer.refresh",
         "title": "AppLink: Refresh Explorer"
       },
@@ -157,6 +165,16 @@
           "command": "heroku-applink-vscode.explorer.refresh",
           "when": "view == applinkExplorer",
           "group": "navigation@1"
+        },
+        {
+          "command": "heroku-applink-vscode.datacloud.deploy",
+          "when": "view == applinkExplorer",
+          "group": "navigation@2"
+        },
+        {
+          "command": "heroku-applink-vscode.viewDefaults",
+          "when": "view == applinkExplorer",
+          "group": "navigation@3"
         }
       ],
       "view/item/context": [
@@ -194,6 +212,26 @@
           "type": "string",
           "default": "",
           "description": "Default AppLink authorization name to use when not provided (--authorization)."
+        },
+        "applink.debugLogging": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable verbose Explorer debug logging (raw CLI output) in the AppLink output channel."
+        },
+        "applink.debugHttp": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable DEBUG=* for Explorer commands to include CLI HTTP debug JSON (for troubleshooting parsing)."
+        },
+        "applink.datacloudDeploy.accessToken": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "When set, this value will be exported as the `DEPLOY_ACCESS_TOKEN` environment variable when running `datacloud:deploy`."
+        },
+        "applink.datacloudDeploy.instanceUrl": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "When set, this value will be exported as the `DEPLOY_INSTANCE_URL` environment variable when running `datacloud:deploy`."
         }
       }
     }

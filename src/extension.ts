@@ -33,6 +33,7 @@ type CommandSchema = {
     addon?: boolean;
     connection?: boolean;
     authorization?: boolean;
+    authorizationName?: boolean;
   };
   positional?: Array<{
     name: string;
@@ -61,7 +62,7 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
   'datacloud:authorizations:remove': { supportedFlags: { authorization: true } },
   'datacloud:data-action-target:create': { requiresApp: true, supportedFlags: { connection: true } },
   // Default schema for newly added command
-  'datacloud:deploy': { requiresApp: true, supportedFlags: { connection: true, authorization: true, addon: true } },
+  'datacloud:deploy': { requiresApp: true, supportedFlags: { addon: true, authorizationName: true, authorization: false } },
 };
 
 // Map a CLI command (e.g., "applink:connections") to an internal VS Code command id
@@ -78,13 +79,16 @@ function parseHelpForFlags(help: string): Partial<CommandSchema> {
   const supportsJson = /\b--json\b/.test(help);
   const supportsAddon = /\b--add-on\b/.test(help) || /\b--addon\b/.test(help);
   const supportsConnection = /\b--connection\b/.test(help);
-  const supportsAuthorization = /\b--authorization\b/.test(help) || /\bauthorization\b/.test(lower);
+  // Only match the explicit --authorization flag; do NOT infer from generic words
+  const supportsAuthorization = /\b--authorization\b/.test(help);
+  const supportsAuthorizationName = /\b--authorization-name\b/.test(help) || /authorization-name/.test(lower);
   const supportsAppFlag = /-a,?\s*--app\b/.test(help) || /\b--app\b/.test(help);
   const requiresApp = supportsAppFlag && (/(?:-a,?\s*--app[^\n]*\brequired\b)/i.test(help) || /usage:[^\n]*\s(-a|--app)\b/i.test(help));
   const supportedFlags: CommandSchema['supportedFlags'] = {
     addon: supportsAddon || undefined,
     connection: supportsConnection || undefined,
     authorization: supportsAuthorization || undefined,
+    authorizationName: supportsAuthorizationName || undefined,
   };
   return {
     supportsJson: supportsJson || undefined,
@@ -143,9 +147,29 @@ export function getOutputChannel(): vscode.OutputChannel {
   return sharedOutput;
 }
 
-export function execPromise(cmd: string, options: { cwd?: string } = {}): Promise<{ stdout: string; stderr: string }> {
+let defaultAppStatusItem: vscode.StatusBarItem | undefined;
+function ensureDefaultAppStatusItem(): vscode.StatusBarItem {
+  if (!defaultAppStatusItem) {
+    defaultAppStatusItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 99);
+    defaultAppStatusItem.command = 'heroku-applink-vscode.setDefaultApp';
+  }
+  return defaultAppStatusItem;
+}
+
+function updateDefaultAppStatusItem(): void {
+  const item = ensureDefaultAppStatusItem();
+  const app = vscode.workspace.getConfiguration('applink').get<string>('defaultApp')?.trim();
+  const appText = app && app.length > 0 ? app : '(none)';
+  item.text = `$(rocket) App: ${appText}`;
+  item.tooltip = app && app.length > 0
+    ? `Default Heroku app (-a). Click to change.`
+    : `No default app set. Click to set default app (-a).`;
+  item.show();
+}
+
+export function execPromise(cmd: string, options: { cwd?: string; env?: NodeJS.ProcessEnv } = {}): Promise<{ stdout: string; stderr: string }> {
   return new Promise((resolve, reject) => {
-    exec(cmd, { cwd: options.cwd, env: process.env, windowsHide: true }, (error, stdout, stderr) => {
+    exec(cmd, { cwd: options.cwd, env: options.env ?? process.env, windowsHide: true }, (error, stdout, stderr) => {
       if (error) {
         reject(Object.assign(error, { stdout, stderr }));
       } else {
@@ -174,12 +198,17 @@ export async function ensureHerokuCli(): Promise<boolean> {
 
 export async function isApplinkPluginInstalled(): Promise<boolean> {
   try {
-    const { stdout } = await execPromise('heroku plugins --json');
-    const plugins = JSON.parse(stdout) as Array<{ name?: string; version?: string; alias?: string }>;
-    return plugins.some(p => p.name === '@heroku-cli/plugin-applink');
+    // Preferred: inspect by short name; exits 0 when installed, non-zero otherwise
+    await execPromise('heroku plugins:inspect applink');
+    return true;
   } catch {
-    // If we cannot parse or fetch plugins, assume not installed
-    return false;
+    // Fallback: some environments may require the full package name
+    try {
+      await execPromise('heroku plugins:inspect @heroku-cli/plugin-applink');
+      return true;
+    } catch {
+      return false;
+    }
   }
 }
 
@@ -235,13 +264,13 @@ async function runHerokuCommand(cliCommand: string): Promise<void> {
   const schema = await getSchemaForCommand(cliCommand);
   const defaultApp = vscode.workspace.getConfiguration('applink').get<string>('defaultApp') ?? '';
   let app: string | undefined = defaultApp;
-  // Prompt for app name if required or default is empty; otherwise prefill
-  if (schema.requiresApp || !defaultApp) {
+  // Prompt only when there is no default app set. If a default is present, use it silently
+  if (!defaultApp) {
     app = await vscode.window.showInputBox({
       title: `App name (-a) for heroku ${cliCommand}`,
       prompt: schema.requiresApp ? 'Enter a Heroku app name (required for this command)' : 'Optional: specify a Heroku app name (equivalent to -a <app>)',
       placeHolder: 'my-heroku-app',
-      value: defaultApp,
+      value: '',
       ignoreFocusOut: true,
     });
     if (schema.requiresApp && (!app || app.trim() === '')) {
@@ -249,13 +278,8 @@ async function runHerokuCommand(cliCommand: string): Promise<void> {
       return;
     }
   }
-  const jsonPick = schema.supportsJson
-    ? await vscode.window.showQuickPick(['No', 'Yes'], {
-        title: 'Output as JSON? (--json)',
-        canPickMany: false,
-        ignoreFocusOut: true,
-      })
-    : undefined;
+  // Note: AppLink CLI commands do not support --json; omit any JSON output option.
+  const jsonPick = undefined as unknown as undefined;
 
   // Collect positional args (if any)
   const positionalInputs: string[] = [];
@@ -277,7 +301,7 @@ async function runHerokuCommand(cliCommand: string): Promise<void> {
   }
 
   // Allow the user to provide any extra flags/args as a final step
-  const extraArgs = await vscode.window.showInputBox({
+  let extraArgs = await vscode.window.showInputBox({
     title: `heroku ${cliCommand}`,
     prompt: 'Optional: enter additional flags/arguments',
     placeHolder: '--help',
@@ -298,6 +322,19 @@ async function runHerokuCommand(cliCommand: string): Promise<void> {
   const defaultAddon = cfg.get<string>('defaultAddon')?.trim();
   const defaultConnection = cfg.get<string>('defaultConnection')?.trim();
   const defaultAuthorization = cfg.get<string>('defaultAuthorization')?.trim();
+  // Sanitize deprecated flags for specific commands
+  if (schema.supportedFlags?.authorizationName) {
+    // Remove any occurrences of deprecated --authorization from extra flags
+    if (extraArgs && /(^|\s)--authorization(\s+\S+)?/.test(extraArgs)) {
+      const before = extraArgs;
+      extraArgs = extraArgs.replace(/(^|\s)--authorization(\s+\S+)?/g, ' ').replace(/\s+/g, ' ').trim();
+      const output = getOutputChannel();
+      output.appendLine('Note: Removed deprecated --authorization from additional flags; using --authorization-name instead.');
+      output.appendLine(`Before: ${before}`);
+      output.appendLine(`After:  ${extraArgs}`);
+    }
+  }
+
   const extra = (extraArgs || '').toLowerCase();
   if (schema.supportedFlags?.addon && defaultAddon && !extra.includes('--add-on') && !parts.includes('--add-on')) {
     parts.push('--add-on', defaultAddon);
@@ -308,9 +345,11 @@ async function runHerokuCommand(cliCommand: string): Promise<void> {
   if (schema.supportedFlags?.authorization && defaultAuthorization && !extra.includes('--authorization') && !parts.includes('--authorization')) {
     parts.push('--authorization', defaultAuthorization);
   }
-  if (jsonPick === 'Yes') {
-    parts.push('--json');
+  // For commands like datacloud:deploy that use --authorization-name instead of --authorization
+  if (schema.supportedFlags?.authorizationName && defaultAuthorization && !extra.includes('--authorization-name') && !parts.includes('--authorization-name')) {
+    parts.push('--authorization-name', defaultAuthorization);
   }
+  // Do not add --json for AppLink commands; unsupported.
   if (extraArgs && extraArgs.trim() !== '') {
     parts.push(extraArgs.trim());
   }
@@ -322,7 +361,28 @@ async function runHerokuCommand(cliCommand: string): Promise<void> {
     output.appendLine('Note: No workspace folder found. Running in the extension host environment.');
   }
 
-  const child = exec(cmd, { cwd, env: process.env, windowsHide: true });
+  // Prepare environment; allow settings to inject DEBUG and deploy overrides
+  const env: NodeJS.ProcessEnv = { ...process.env };
+  const debugHttp = vscode.workspace.getConfiguration('applink').get<boolean>('debugHttp') === true;
+  if (debugHttp) {
+    env.DEBUG = env.DEBUG && env.DEBUG.trim().length > 0 ? env.DEBUG : 'http,-http:headers';
+    output.appendLine(`Note: DEBUG=${env.DEBUG} applied for this command`);
+  }
+  if (cliCommand === 'datacloud:deploy') {
+    // Note: cfg points to the 'applink' section, so nested keys are 'datacloudDeploy.*'
+    const deployAccessToken = cfg.get<string>('datacloudDeploy.accessToken')?.trim();
+    const deployInstanceUrl = cfg.get<string>('datacloudDeploy.instanceUrl')?.trim();
+    if (deployAccessToken) {
+      env.DEPLOY_ACCESS_TOKEN = deployAccessToken;
+      output.appendLine('Note: Using DEPLOY_ACCESS_TOKEN from settings for datacloud:deploy');
+    }
+    if (deployInstanceUrl) {
+      env.DEPLOY_INSTANCE_URL = deployInstanceUrl;
+      output.appendLine('Note: Using DEPLOY_INSTANCE_URL from settings for datacloud:deploy');
+    }
+  }
+
+  const child = exec(cmd, { cwd, env, windowsHide: true });
 
   child.stdout?.on('data', (data: string) => output.append(data));
   child.stderr?.on('data', (data: string) => output.append(data));
@@ -379,10 +439,28 @@ export function activate(context: vscode.ExtensionContext) {
       return;
     }
     output.appendLine('Checking AppLink plugin...');
-    if (await isApplinkPluginInstalled()) {
-      output.appendLine('AppLink plugin: Installed');
-    } else {
-      output.appendLine('AppLink plugin: Not installed');
+    let installed = false;
+    // Try short name first for details
+    try {
+      await execPromise('heroku plugins:inspect applink');
+      installed = true;
+      output.appendLine('AppLink plugin: Installed (via "plugins:inspect applink")');
+    } catch (e1) {
+      try {
+        await execPromise('heroku plugins:inspect @heroku-cli/plugin-applink');
+        installed = true;
+        output.appendLine('AppLink plugin: Installed (via "plugins:inspect @heroku-cli/plugin-applink")');
+      } catch (e2) {
+        output.appendLine('AppLink plugin: Not installed');
+        // Provide stderr if available to help diagnose
+        const err = e2 as any;
+        if (err && typeof err.stderr === 'string' && err.stderr.trim()) {
+          output.appendLine('inspect stderr:');
+          output.appendLine(err.stderr.trim());
+        }
+      }
+    }
+    if (!installed) {
       const proceed = await ensureApplinkPlugin();
       output.appendLine(`Plugin install attempted: ${proceed ? 'Success' : 'Failed/Skipped'}`);
     }
@@ -398,6 +476,24 @@ export function activate(context: vscode.ExtensionContext) {
   statusItem.show();
   context.subscriptions.push(statusItem);
 
+  // Status bar item to show current default app (-a)
+  const appItem = ensureDefaultAppStatusItem();
+  updateDefaultAppStatusItem();
+  context.subscriptions.push(appItem);
+
+  // Update status item when configuration changes
+  const configWatcher = vscode.workspace.onDidChangeConfiguration(e => {
+    if (
+      e.affectsConfiguration('applink.defaultApp') ||
+      e.affectsConfiguration('applink.defaultAddon') ||
+      e.affectsConfiguration('applink.defaultConnection') ||
+      e.affectsConfiguration('applink.defaultAuthorization')
+    ) {
+      updateDefaultAppStatusItem();
+    }
+  });
+  context.subscriptions.push(configWatcher);
+
   // Register Tree View (Explorer)
   const explorer = new AppLinkExplorer();
   const viewId = 'applinkExplorer';
@@ -412,6 +508,13 @@ export function activate(context: vscode.ExtensionContext) {
     }
   });
   context.subscriptions.push(refreshCmd, openInfoCmd, copyIdCmd);
+
+  // Command to open external docs (used by Explorer placeholders)
+  const openDocsCmd = vscode.commands.registerCommand('heroku-applink-vscode.explorer.openDocs', async (url?: string) => {
+    const target = url || 'https://devcenter.heroku.com/categories/add-ons';
+    await vscode.env.openExternal(vscode.Uri.parse(target));
+  });
+  context.subscriptions.push(openDocsCmd);
 
   // Command to set default app config
   const setDefaultAppCmd = vscode.commands.registerCommand('heroku-applink-vscode.setDefaultApp', async () => {
@@ -433,6 +536,7 @@ export function activate(context: vscode.ExtensionContext) {
     const target = targetPick === 'Workspace' ? vscode.ConfigurationTarget.Workspace : vscode.ConfigurationTarget.Global;
     await vscode.workspace.getConfiguration('applink').update('defaultApp', app.trim(), target);
     vscode.window.showInformationMessage(app.trim() === '' ? 'Cleared default app.' : `Default app set to ${app.trim()}`);
+    updateDefaultAppStatusItem();
   });
   context.subscriptions.push(setDefaultAppCmd);
 
@@ -484,8 +588,46 @@ export function activate(context: vscode.ExtensionContext) {
     await cfg.update('defaultConnection', (connection ?? '').trim(), target);
     await cfg.update('defaultAuthorization', (authorization ?? '').trim(), target);
     vscode.window.showInformationMessage('Saved default AppLink parameters.');
+    updateDefaultAppStatusItem();
   });
   context.subscriptions.push(setDefaultsCmd);
+
+  // Command to view current defaults
+  const viewDefaultsCmd = vscode.commands.registerCommand('heroku-applink-vscode.viewDefaults', async () => {
+    const cfg = vscode.workspace.getConfiguration('applink');
+    const currentApp = cfg.get<string>('defaultApp') ?? '';
+    const currentAddon = cfg.get<string>('defaultAddon') ?? '';
+    const currentConnection = cfg.get<string>('defaultConnection') ?? '';
+    const currentAuthorization = cfg.get<string>('defaultAuthorization') ?? '';
+
+    const output = getOutputChannel();
+    output.show(true);
+    output.appendLine('AppLink Defaults');
+    output.appendLine('----------------');
+    output.appendLine(`defaultApp (-a): ${currentApp || '(not set)'}`);
+    output.appendLine(`defaultAddon (--add-on): ${currentAddon || '(not set)'}`);
+    output.appendLine(`defaultConnection (--connection): ${currentConnection || '(not set)'}`);
+    output.appendLine(`defaultAuthorization (--authorization): ${currentAuthorization || '(not set)'}`);
+
+    // Also present a Quick Pick for easy viewing/copying
+    const items: vscode.QuickPickItem[] = [
+      { label: 'defaultApp (-a)', description: currentApp || '(not set)' },
+      { label: 'defaultAddon (--add-on)', description: currentAddon || '(not set)' },
+      { label: 'defaultConnection (--connection)', description: currentConnection || '(not set)' },
+      { label: 'defaultAuthorization (--authorization)', description: currentAuthorization || '(not set)' },
+    ];
+    const picked = await vscode.window.showQuickPick(items, {
+      title: 'AppLink Defaults',
+      placeHolder: 'Select a default to copy its value to the clipboard',
+      canPickMany: false,
+      ignoreFocusOut: true,
+    });
+    if (picked && picked.description && picked.description !== '(not set)') {
+      await vscode.env.clipboard.writeText(picked.description);
+      vscode.window.showInformationMessage(`Copied ${picked.label} value to clipboard.`);
+    }
+  });
+  context.subscriptions.push(viewDefaultsCmd);
 }
 
 // This method is called when your extension is deactivated
